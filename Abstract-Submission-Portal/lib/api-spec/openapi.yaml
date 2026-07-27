@@ -1,0 +1,2393 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Abstract Submission Portal API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication and session management
+  - name: abstracts
+    description: Abstract submission operations
+  - name: reviews
+    description: Review operations
+  - name: users
+    description: User management
+  - name: dashboard
+    description: Dashboard and analytics
+  - name: form-fields
+    description: Custom form field management
+  - name: programme
+    description: Conference programme/agenda management
+  - name: tickets
+    description: Ticket cross-reference and attendee management
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout current session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users (admin only)
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [author, reviewer, admin, reviewer_admin]
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /abstracts:
+    get:
+      operationId: listAbstracts
+      tags: [abstracts]
+      summary: List abstracts (filtered by role)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, submitted, under_review, accepted, rejected, on_hold]
+        - name: track
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: authorId
+          in: query
+          schema:
+            type: integer
+        - name: reviewerId
+          in: query
+          schema:
+            type: integer
+        - name: country
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of abstracts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AbstractWithDetails"
+    post:
+      operationId: createAbstract
+      tags: [abstracts]
+      summary: Create a new abstract submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAbstractBody"
+      responses:
+        "201":
+          description: Created abstract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbstractWithDetails"
+
+  /abstracts/{id}:
+    get:
+      operationId: getAbstract
+      tags: [abstracts]
+      summary: Get abstract by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Abstract with all details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbstractWithDetails"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateAbstract
+      tags: [abstracts]
+      summary: Update abstract (author for draft, admin for any)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAbstractBody"
+      responses:
+        "200":
+          description: Updated abstract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbstractWithDetails"
+    delete:
+      operationId: deleteAbstract
+      tags: [abstracts]
+      summary: Delete abstract (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /abstracts/{id}/submit:
+    post:
+      operationId: submitAbstract
+      tags: [abstracts]
+      summary: Submit a draft abstract
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Submitted abstract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbstractWithDetails"
+
+  /abstracts/{id}/status:
+    patch:
+      operationId: updateAbstractStatus
+      tags: [abstracts]
+      summary: Update abstract status (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusBody"
+      responses:
+        "200":
+          description: Updated abstract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbstractWithDetails"
+
+  /abstracts/{id}/assign:
+    post:
+      operationId: assignReviewers
+      tags: [abstracts]
+      summary: Assign reviewers to abstract (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignReviewersBody"
+      responses:
+        "200":
+          description: Assignment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbstractWithDetails"
+
+  /abstracts/{id}/auto-assign:
+    post:
+      operationId: autoAssignReviewers
+      tags: [abstracts]
+      summary: Auto-assign reviewers based on load balancing (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Auto-assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbstractWithDetails"
+
+  /abstracts/bulk-download:
+    post:
+      operationId: bulkDownloadAbstracts
+      tags: [abstracts]
+      summary: Bulk download abstracts as CSV metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkDownloadBody"
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /abstracts/{id}/messages:
+    get:
+      operationId: listMessages
+      tags: [abstracts]
+      summary: List messages for a submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [abstracts]
+      summary: Send a message on a submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageBody"
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /abstracts/{id}/messages/{messageId}/read:
+    patch:
+      operationId: markMessageRead
+      tags: [abstracts]
+      summary: Mark a message as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Message marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /abstracts/{id}/speaker:
+    get:
+      operationId: getSpeaker
+      tags: [abstracts]
+      summary: Get speaker registration for an accepted submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Speaker record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Speaker"
+        "404":
+          description: No speaker registered
+    post:
+      operationId: registerSpeaker
+      tags: [abstracts]
+      summary: Register a speaker for an accepted submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSpeakerBody"
+      responses:
+        "201":
+          description: Speaker registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Speaker"
+    patch:
+      operationId: updateSpeaker
+      tags: [abstracts]
+      summary: Update speaker profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSpeakerBody"
+      responses:
+        "200":
+          description: Updated speaker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Speaker"
+
+  /abstracts/{id}/versions:
+    get:
+      operationId: listAbstractVersions
+      tags: [abstracts]
+      summary: List version history for a submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Version list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AbstractVersion"
+
+  /reviews:
+    get:
+      operationId: listReviews
+      tags: [reviews]
+      summary: List reviews (reviewer sees own, admin sees all)
+      parameters:
+        - name: abstractId
+          in: query
+          schema:
+            type: integer
+        - name: reviewerId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewWithDetails"
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Submit a review for an abstract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewBody"
+      responses:
+        "201":
+          description: Created review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewWithDetails"
+
+  /reviews/{id}:
+    get:
+      operationId: getReview
+      tags: [reviews]
+      summary: Get review by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewWithDetails"
+    patch:
+      operationId: updateReview
+      tags: [reviews]
+      summary: Update a review (reviewer can update own pending review)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReviewBody"
+      responses:
+        "200":
+          description: Updated review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewWithDetails"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics
+      parameters:
+        - name: country
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity log
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+
+  /dashboard/reviewer-workload:
+    get:
+      operationId: getReviewerWorkload
+      tags: [dashboard]
+      summary: Get reviewer workload distribution
+      parameters:
+        - name: country
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reviewer workload
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewerWorkload"
+
+  /dashboard/speaker-payment-stats:
+    get:
+      operationId: getDashboardSpeakerPaymentStats
+      tags: [dashboard]
+      summary: Get speaker payment status stats (cross-referenced with ticket data)
+      responses:
+        "200":
+          description: Speaker payment stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpeakerPaymentStats"
+
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [dashboard]
+      summary: List audit logs (admin only)
+      parameters:
+        - name: abstractId
+          in: query
+          schema:
+            type: integer
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: action
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+
+  /form-fields:
+    get:
+      operationId: listFormFields
+      tags: [form-fields]
+      summary: List all form fields (active and inactive)
+      responses:
+        "200":
+          description: List of form fields
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FormField"
+    post:
+      operationId: createFormField
+      tags: [form-fields]
+      summary: Create a new custom form field (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFormFieldBody"
+      responses:
+        "201":
+          description: Created form field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormField"
+
+  /form-fields/reorder:
+    post:
+      operationId: reorderFormFields
+      tags: [form-fields]
+      summary: Reorder form fields (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderFormFieldsBody"
+      responses:
+        "200":
+          description: Reordered fields
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FormField"
+
+  /form-fields/{id}:
+    patch:
+      operationId: updateFormField
+      tags: [form-fields]
+      summary: Update a custom form field (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFormFieldBody"
+      responses:
+        "200":
+          description: Updated form field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormField"
+    delete:
+      operationId: deleteFormField
+      tags: [form-fields]
+      summary: Delete a custom form field (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /abstracts/{id}/field-values:
+    get:
+      operationId: getAbstractFieldValues
+      tags: [abstracts]
+      summary: Get custom field values for an abstract
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Field values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AbstractFieldValue"
+    post:
+      operationId: saveAbstractFieldValues
+      tags: [abstracts]
+      summary: Save custom field values for an abstract
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveAbstractFieldValuesBody"
+      responses:
+        "200":
+          description: Saved field values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AbstractFieldValue"
+
+  /tickets/upload:
+    post:
+      operationId: uploadTicketCsv
+      tags: [tickets]
+      summary: Upload Zoho Backstage CSV and store attendees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fileName: { type: string }
+                emailCol: { type: string }
+                nameCol: { type: string }
+                ticketTypeCol: { type: string }
+                statusCol: { type: string }
+                paymentStatusCol: { type: string }
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties:
+                      type: string
+              required: [fileName, emailCol, rows]
+      responses:
+        "200":
+          description: Upload successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketSyncMeta"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tickets/drive-headers:
+    get:
+      operationId: getTicketDriveHeaders
+      tags: [tickets]
+      summary: Fetch CSV column headers from a public Google Drive URL
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Column headers detected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  headers:
+                    type: array
+                    items:
+                      type: string
+                  rowCount:
+                    type: integer
+                  fileName:
+                    type: string
+                required: [headers, rowCount, fileName]
+        "400":
+          description: Bad URL or not a CSV
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tickets/sync-drive:
+    post:
+      operationId: syncTicketsFromDrive
+      tags: [tickets]
+      summary: Fetch and sync CSV from a public Google Drive URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                driveUrl: { type: string }
+                emailCol: { type: string }
+                nameCol: { type: string }
+                ticketTypeCol: { type: string }
+                statusCol: { type: string }
+                paymentStatusCol: { type: string }
+              required: [driveUrl, emailCol]
+      responses:
+        "200":
+          description: Sync successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketSyncMeta"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tickets/summary:
+    get:
+      operationId: getTicketSummary
+      tags: [tickets]
+      summary: Get ticket cross-reference summary and stats
+      responses:
+        "200":
+          description: Summary data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketSummary"
+        "204":
+          description: No data yet
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /programme/sessions:
+    get:
+      operationId: listProgrammeSessions
+      tags: [programme]
+      summary: List all programme sessions with speakers (public)
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgrammeSession"
+    post:
+      operationId: createProgrammeSession
+      tags: [programme]
+      summary: Create a new session (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProgrammeSessionBody"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgrammeSession"
+
+  /programme/sessions/{id}:
+    patch:
+      operationId: updateProgrammeSession
+      tags: [programme]
+      summary: Update a session (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProgrammeSessionBody"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgrammeSession"
+    delete:
+      operationId: deleteProgrammeSession
+      tags: [programme]
+      summary: Delete a session (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  /programme/sessions/{id}/speakers:
+    post:
+      operationId: addSessionSpeaker
+      tags: [programme]
+      summary: Add a speaker to a session (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionSpeakerBody"
+      responses:
+        "201":
+          description: Created speaker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgrammeSpeaker"
+
+  /programme/sessions/{id}/speakers/{speakerId}:
+    patch:
+      operationId: updateSessionSpeaker
+      tags: [programme]
+      summary: Update a speaker (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: speakerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSessionSpeakerBody"
+      responses:
+        "200":
+          description: Updated speaker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgrammeSpeaker"
+    delete:
+      operationId: deleteSessionSpeaker
+      tags: [programme]
+      summary: Remove a speaker from a session (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: speakerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  /programme/sessions/{id}/speakers/{speakerId}/photo:
+    post:
+      operationId: updateSessionSpeakerPhoto
+      tags: [programme]
+      summary: Set speaker photo (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: speakerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionSpeakerPhotoBody"
+      responses:
+        "200":
+          description: Updated speaker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgrammeSpeaker"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    RegisterBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [author, reviewer, admin, reviewer_admin]
+        expertise:
+          type: ["string", "null"]
+      required:
+        - name
+        - email
+        - password
+        - role
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [author, reviewer, admin, reviewer_admin]
+        expertise:
+          type: ["string", "null"]
+        mustChangePassword:
+          type: boolean
+      required:
+        - id
+        - name
+        - email
+        - role
+        - mustChangePassword
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [author, reviewer, admin, reviewer_admin]
+        expertise:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        abstractCount:
+          type: integer
+        reviewCount:
+          type: integer
+      required:
+        - id
+        - name
+        - email
+        - role
+        - createdAt
+        - abstractCount
+        - reviewCount
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [author, reviewer, admin, reviewer_admin]
+        expertise:
+          type: ["string", "null"]
+
+    Abstract:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        track:
+          type: string
+        keywords:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, submitted, under_review, accepted, rejected, on_hold]
+        authorId:
+          type: integer
+        submittedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - content
+        - track
+        - status
+        - authorId
+        - createdAt
+        - updatedAt
+
+    AbstractWithDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        track:
+          type: string
+        keywords:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, submitted, under_review, accepted, rejected, on_hold]
+        authorId:
+          type: integer
+        authorName:
+          type: string
+        authorEmail:
+          type: string
+        fileObjectPath:
+          type: ["string", "null"]
+        fileOriginalName:
+          type: ["string", "null"]
+        adminFeedbackFileObjectPath:
+          type: ["string", "null"]
+        adminFeedbackFileName:
+          type: ["string", "null"]
+        submittedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        reviewers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewerAssignment"
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewWithDetails"
+        averageScore:
+          type: ["number", "null"]
+        fieldValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/AbstractFieldValue"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AbstractAttachment"
+      required:
+        - id
+        - title
+        - content
+        - track
+        - status
+        - authorId
+        - authorName
+        - authorEmail
+        - createdAt
+        - updatedAt
+        - reviewers
+        - reviews
+        - attachments
+
+    AbstractAttachment:
+      type: object
+      properties:
+        id:
+          type: integer
+        abstractId:
+          type: integer
+        fileObjectPath:
+          type: string
+        fileOriginalName:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - abstractId
+        - fileObjectPath
+        - fileOriginalName
+        - uploadedAt
+
+    ReviewerAssignment:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        expertise:
+          type: ["string", "null"]
+        assignedAt:
+          type: string
+          format: date-time
+      required:
+        - userId
+        - name
+        - email
+        - assignedAt
+
+    CreateAbstractBody:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        track:
+          type: string
+        keywords:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        salutation:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        organization:
+          type: ["string", "null"]
+        designation:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        onBehalfOfAuthorId:
+          type: ["integer", "null"]
+      required:
+        - title
+        - content
+        - track
+
+    UpdateAbstractBody:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        track:
+          type: string
+        keywords:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        fileObjectPath:
+          type: ["string", "null"]
+        fileOriginalName:
+          type: ["string", "null"]
+
+    UpdateStatusBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [submitted, under_review, accepted, rejected, on_hold]
+        note:
+          type: ["string", "null"]
+        feedbackFileObjectPath:
+          type: ["string", "null"]
+        feedbackFileName:
+          type: ["string", "null"]
+      required:
+        - status
+
+    AssignReviewersBody:
+      type: object
+      properties:
+        reviewerIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - reviewerIds
+
+    BulkDownloadBody:
+      type: object
+      properties:
+        abstractIds:
+          type: array
+          items:
+            type: integer
+        status:
+          type: ["string", "null"]
+          enum: [draft, submitted, under_review, accepted, rejected, on_hold, null]
+      required:
+        - abstractIds
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        abstractId:
+          type: integer
+        reviewerId:
+          type: integer
+        score:
+          type: ["integer", "null"]
+        comments:
+          type: ["string", "null"]
+        recommendation:
+          type: ["string", "null"]
+          enum: [accept, accept_minor_review, accept_major_review, reject, revise, null]
+        status:
+          type: string
+          enum: [pending, completed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - abstractId
+        - reviewerId
+        - status
+        - createdAt
+        - updatedAt
+
+    ReviewWithDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        abstractId:
+          type: integer
+        abstractTitle:
+          type: string
+        abstractTrack:
+          type: ["string", "null"]
+        abstractStatus:
+          type: ["string", "null"]
+        reviewerId:
+          type: integer
+        reviewerName:
+          type: string
+        score:
+          type: ["integer", "null"]
+        comments:
+          type: ["string", "null"]
+        recommendation:
+          type: ["string", "null"]
+          enum: [accept, accept_minor_review, accept_major_review, reject, revise, null]
+        status:
+          type: string
+          enum: [pending, completed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - abstractId
+        - abstractTitle
+        - reviewerId
+        - reviewerName
+        - status
+        - createdAt
+        - updatedAt
+
+    CreateReviewBody:
+      type: object
+      properties:
+        abstractId:
+          type: integer
+        score:
+          type: ["integer", "null"]
+        comments:
+          type: ["string", "null"]
+        recommendation:
+          type: ["string", "null"]
+          enum: [accept, accept_minor_review, accept_major_review, reject, revise, null]
+      required:
+        - abstractId
+
+    UpdateReviewBody:
+      type: object
+      properties:
+        score:
+          type: ["integer", "null"]
+        comments:
+          type: ["string", "null"]
+        recommendation:
+          type: ["string", "null"]
+          enum: [accept, accept_minor_review, accept_major_review, reject, revise, null]
+        status:
+          type: string
+          enum: [pending, completed]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalAbstracts:
+          type: integer
+        byStatus:
+          type: object
+          properties:
+            draft:
+              type: integer
+            submitted:
+              type: integer
+            under_review:
+              type: integer
+            accepted:
+              type: integer
+            rejected:
+              type: integer
+            on_hold:
+              type: integer
+          required:
+            - draft
+            - submitted
+            - under_review
+            - accepted
+            - rejected
+            - on_hold
+        totalReviewers:
+          type: integer
+        totalAuthors:
+          type: integer
+        pendingReviews:
+          type: integer
+        completedReviews:
+          type: integer
+        byTrack:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackStat"
+        byCountry:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountryStat"
+        recentSubmissions:
+          type: integer
+      required:
+        - totalAbstracts
+        - byStatus
+        - totalReviewers
+        - totalAuthors
+        - pendingReviews
+        - completedReviews
+        - byTrack
+        - byCountry
+        - recentSubmissions
+
+    TrackStat:
+      type: object
+      properties:
+        track:
+          type: string
+        count:
+          type: integer
+      required:
+        - track
+        - count
+
+    CountryStat:
+      type: object
+      properties:
+        country:
+          type: ["string", "null"]
+        count:
+          type: integer
+      required:
+        - country
+        - count
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+        details:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - action
+        - entityType
+        - entityId
+        - createdAt
+
+    ReviewerWorkload:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        expertise:
+          type: ["string", "null"]
+        assignedCount:
+          type: integer
+        completedCount:
+          type: integer
+        pendingCount:
+          type: integer
+      required:
+        - userId
+        - name
+        - email
+        - assignedCount
+        - completedCount
+        - pendingCount
+
+    FormField:
+      type: object
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, number, dropdown, checkbox, textarea]
+        options:
+          type: ["array", "null"]
+          items:
+            type: string
+        required:
+          type: boolean
+        position:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - label
+        - type
+        - required
+        - position
+        - active
+        - createdAt
+        - updatedAt
+
+    CreateFormFieldBody:
+      type: object
+      properties:
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, number, dropdown, checkbox, textarea]
+        options:
+          type: ["array", "null"]
+          items:
+            type: string
+        required:
+          type: boolean
+        position:
+          type: integer
+      required:
+        - label
+        - type
+
+    UpdateFormFieldBody:
+      type: object
+      properties:
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, number, dropdown, checkbox, textarea]
+        options:
+          type: ["array", "null"]
+          items:
+            type: string
+        required:
+          type: boolean
+        position:
+          type: integer
+        active:
+          type: boolean
+
+    ReorderFormFieldsBody:
+      type: object
+      properties:
+        orderedIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - orderedIds
+
+    AbstractFieldValue:
+      type: object
+      properties:
+        id:
+          type: integer
+        abstractId:
+          type: integer
+        fieldId:
+          type: integer
+        fieldLabel:
+          type: string
+        fieldType:
+          type: string
+          enum: [text, number, dropdown, checkbox, textarea]
+        value:
+          type: ["string", "null"]
+      required:
+        - id
+        - abstractId
+        - fieldId
+        - fieldLabel
+        - fieldType
+
+    SaveAbstractFieldValuesBody:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            type: object
+            properties:
+              fieldId:
+                type: integer
+              value:
+                type: ["string", "null"]
+            required:
+              - fieldId
+      required:
+        - values
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        abstractId:
+          type: integer
+        senderId:
+          type: integer
+        senderName:
+          type: string
+        senderRole:
+          type: string
+        content:
+          type: string
+        readAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - abstractId
+        - senderId
+        - senderName
+        - senderRole
+        - content
+        - createdAt
+
+    CreateMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+
+    Speaker:
+      type: object
+      properties:
+        id:
+          type: integer
+        abstractId:
+          type: integer
+        name:
+          type: string
+        organization:
+          type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        photoObjectPath:
+          type: ["string", "null"]
+        biography:
+          type: ["string", "null"]
+        presentationTitle:
+          type: ["string", "null"]
+        materialObjectPath:
+          type: ["string", "null"]
+        materialOriginalName:
+          type: ["string", "null"]
+        lastReminderSentAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - abstractId
+        - name
+        - email
+        - createdAt
+        - updatedAt
+
+    CreateSpeakerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        organization:
+          type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+      required:
+        - name
+        - email
+
+    UpdateSpeakerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        organization:
+          type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        photoObjectPath:
+          type: ["string", "null"]
+        biography:
+          type: ["string", "null"]
+        presentationTitle:
+          type: ["string", "null"]
+        materialObjectPath:
+          type: ["string", "null"]
+        materialOriginalName:
+          type: ["string", "null"]
+
+    AbstractVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+        abstractId:
+          type: integer
+        version:
+          type: integer
+        title:
+          type: string
+        content:
+          type: ["string", "null"]
+        track:
+          type: string
+        keywords:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        snapshotReason:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - abstractId
+        - version
+        - title
+        - track
+        - createdAt
+
+    ProgrammeSpeaker:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        name:
+          type: string
+        jobTitle:
+          type: ["string", "null"]
+        organization:
+          type: ["string", "null"]
+        roleInSession:
+          type: ["string", "null"]
+        photoObjectPath:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        displayOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sessionId
+        - name
+        - displayOrder
+        - createdAt
+
+    ProgrammeSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        track:
+          type: string
+        room:
+          type: ["string", "null"]
+        date:
+          type: ["string", "null"]
+        startTime:
+          type: ["string", "null"]
+        endTime:
+          type: ["string", "null"]
+        isBreak:
+          type: boolean
+        displayOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        speakers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgrammeSpeaker"
+      required:
+        - id
+        - title
+        - track
+        - isBreak
+        - displayOrder
+        - createdAt
+        - updatedAt
+        - speakers
+
+    CreateProgrammeSessionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        track:
+          type: string
+        room:
+          type: string
+        date:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        isBreak:
+          type: boolean
+        displayOrder:
+          type: integer
+      required:
+        - title
+
+    UpdateProgrammeSessionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        track:
+          type: string
+        room:
+          type: string
+        date:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        isBreak:
+          type: boolean
+        displayOrder:
+          type: integer
+
+    CreateSessionSpeakerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        jobTitle:
+          type: string
+        organization:
+          type: string
+        roleInSession:
+          type: string
+        displayOrder:
+          type: integer
+      required:
+        - name
+
+    UpdateSessionSpeakerBody:
+      type: object
+      properties:
+        name:
+          type: string
+        jobTitle:
+          type: string
+        organization:
+          type: string
+        roleInSession:
+          type: string
+        displayOrder:
+          type: integer
+
+    SessionSpeakerPhotoBody:
+      type: object
+      properties:
+        photoObjectPath:
+          type: string
+      required:
+        - photoObjectPath
+
+    SpeakerPaymentStats:
+      type: object
+      properties:
+        totalSpeakers:
+          type: integer
+        noSyncYet:
+          type: boolean
+        lastSyncAt:
+          type: ["string", "null"]
+        byPaymentStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              paymentStatus: { type: string }
+              label: { type: string }
+              count: { type: integer }
+              speakers:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    email: { type: string }
+                    speakerStatus: { type: string }
+                  required: [id, name, email, speakerStatus]
+            required: [paymentStatus, label, count, speakers]
+      required: [totalSpeakers, noSyncYet, byPaymentStatus]
+
+    TicketSyncMeta:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        rowCount:
+          type: integer
+        emailCol:
+          type: string
+        nameCol:
+          type: string
+        ticketTypeCol:
+          type: string
+        statusCol:
+          type: string
+        paymentStatusCol:
+          type: string
+        syncedAt:
+          type: string
+        driveUrl:
+          type: string
+      required: [id, fileName, rowCount, emailCol, nameCol, ticketTypeCol, statusCol, syncedAt]
+
+    TicketAttendeeRow:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        ticketType:
+          type: string
+        registrationStatus:
+          type: string
+      required: [id, email, name, ticketType, registrationStatus]
+
+    TicketSummary:
+      type: object
+      properties:
+        sync:
+          $ref: "#/components/schemas/TicketSyncMeta"
+        totalAttendees:
+          type: integer
+        matched:
+          type: integer
+        noTicket:
+          type: integer
+        csvOnly:
+          type: integer
+        byTicketType:
+          type: array
+          items:
+            type: object
+            properties:
+              ticketType: { type: string }
+              count: { type: integer }
+            required: [ticketType, count]
+        byStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              count: { type: integer }
+            required: [status, count]
+        portalUsersWithTicket:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              email: { type: string }
+              role: { type: string }
+              ticketType: { type: string }
+              registrationStatus: { type: string }
+              abstractCount: { type: integer }
+            required: [id, name, email, role, ticketType, registrationStatus, abstractCount]
+        portalUsersWithoutTicket:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              email: { type: string }
+              role: { type: string }
+              abstractCount: { type: integer }
+            required: [id, name, email, role, abstractCount]
+        attendeesNotInPortal:
+          type: array
+          items:
+            $ref: "#/components/schemas/TicketAttendeeRow"
+      required: [totalAttendees, matched, noTicket, csvOnly, byTicketType, byStatus, portalUsersWithTicket, portalUsersWithoutTicket, attendeesNotInPortal]

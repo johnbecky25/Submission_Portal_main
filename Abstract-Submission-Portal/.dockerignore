@@ -1,0 +1,33 @@
+# Dependencies (installed fresh in Docker)
+node_modules
+**/node_modules
+
+# Build outputs
+**/dist
+**/dist/public
+
+# Git
+.git
+.gitignore
+
+# Replit-specific
+.replit
+.replitignore
+.local
+.upm
+.cache
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (these must be set via docker-compose)
+.env
+.env.*
+!deploy/.env.example
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Test / coverage
+coverage
